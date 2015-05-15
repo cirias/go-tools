@@ -13,23 +13,35 @@ import (
 )
 
 const (
-	PixivHost = "http://www.pixiv.net"
-	AuthorUrl = PixivHost + "/member_illust.php"
-	IllustUrl = PixivHost + "/member_illust.php"
+	PixivHost   = "http://www.pixiv.net"
+	AuthorUrl   = PixivHost + "/member_illust.php"
+	IllustUrl   = PixivHost + "/member_illust.php"
+	IllustsSize = 20
 )
 
 var (
-	memberId string
-	user     string
-	pass     string
+	memberId   string
+	user       string
+	pass       string
+	fileformat string
+	dirformat  string
+	dir        string
+	workSize   int
 )
 
 func init() {
+	// Get current work directory
+	d, _ := os.Getwd()
+
 	flag.StringVar(&user, "user", "", "the user name to login")
 	flag.StringVar(&pass, "pass", "", "the password of the login user")
+	flag.StringVar(&fileformat, "file-format", "pixiv-{{Illust.Id}}-{{Illust.Name}}-{{Author.Name}}-{{Image.Id}}", "the format of the image name")
+	flag.StringVar(&dirformat, "dir-format", "{{Author.Name}}-{{Author.Id}}", "the format of the directory name")
+	flag.StringVar(&dir, "dir", d, "the directory to save the images")
+	flag.IntVar(&workSize, "work-size", 10, "the max count of concurreny working jobs")
 	flag.Parse()
 
-	if flag.NArg() < 1 {
+	if flag.NArg() < 1 || user == "" || pass == "" {
 		fmt.Fprintf(os.Stderr, "Usage: %s [options] <id>\n", os.Args[0])
 		flag.PrintDefaults()
 		os.Exit(1)
@@ -39,12 +51,8 @@ func init() {
 }
 
 func main() {
-	//id := "984442"  リンファミ
-	//user := "fhc023"
-	//pass := "f32645664"
-
-	queue := make(chan Job, 200)
-	wc := make(chan struct{}, 10)
+	queue := make(chan Job, 20)
+	wc := make(chan struct{}, workSize)
 	wg := new(sync.WaitGroup)
 
 	wait := func() {
@@ -67,7 +75,7 @@ func main() {
 		reflect.ValueOf(addJob),
 	}
 
-	c.login(user, pass)
+	c.Login(user, pass)
 
 	addJob(Job{Route: Route{getUrl(), "GetAuthor"}})
 
@@ -81,14 +89,15 @@ func main() {
 				<-wc
 			}()
 			defer wg.Done()
+			defer log.Println("Job Done\t", j)
 
-			log.Println(j)
+			log.Println("Start Job\t", j)
 			reflect.ValueOf(&c).MethodByName(j.Route.Method).
 				Call([]reflect.Value{reflect.ValueOf(j)})
 		}(j)
 	}
 
-	log.Printf("ok\n")
+	log.Println("Complete!")
 }
 
 func getUrl() string {
