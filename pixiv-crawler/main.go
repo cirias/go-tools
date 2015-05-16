@@ -20,13 +20,13 @@ const (
 )
 
 var (
-	memberId   string
-	user       string
-	pass       string
-	fileformat string
-	dirformat  string
-	dir        string
-	worksCount int
+	memberId    string
+	user        string
+	pass        string
+	fileformat  string
+	dirformat   string
+	dir         string
+	workerCount int
 )
 
 func init() {
@@ -38,7 +38,7 @@ func init() {
 	flag.StringVar(&fileformat, "file-format", "pixiv-{{Illust.Id}}-{{Illust.Name}}-{{Author.Name}}-{{Image.Id}}", "the format of the image name")
 	flag.StringVar(&dirformat, "dir-format", "{{Author.Name}}-{{Author.Id}}", "the format of the directory name")
 	flag.StringVar(&dir, "dir", d, "the directory to save the images")
-	flag.IntVar(&worksCount, "works-count", 10, "the max count of concurreny working jobs")
+	flag.IntVar(&workerCount, "worker-count", 10, "the max count of concurreny working jobs")
 	flag.Parse()
 
 	if flag.NArg() < 1 || user == "" || pass == "" {
@@ -52,7 +52,7 @@ func init() {
 
 func main() {
 	queue := make(chan Job, 20)
-	works := make(chan struct{}, worksCount)
+	works := make(chan struct{}, workerCount)
 	wg := new(sync.WaitGroup)
 
 	wait := func() {

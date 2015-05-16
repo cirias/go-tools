@@ -219,6 +219,19 @@ func (c *Client) GetMultiFurther(j Job) {
 func (c *Client) Download(j Job) {
 	image := j.Data.(Image)
 
+	dirname := path.Join(dir, image.Format(dirformat, true))
+	filename := path.Join(dirname, image.Format(fileformat, false))
+
+	os.MkdirAll(dirname, 0777)
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Println(err)
+	}
+	defer file.Close()
+
+	b := backoff.NewExponentialBackOff()
+	t := backoff.NewTicker(b)
+
 	req, _ := http.NewRequest("GET", j.Route.Url, nil)
 	req.Header.Set("Accept", "image/webp,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "zh-CN")
@@ -228,32 +241,20 @@ func (c *Client) Download(j Job) {
 	req.Header.Set("Referer", image.Referer)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36")
 
-	b := backoff.NewExponentialBackOff()
-	t := backoff.NewTicker(b)
-
 	var res *http.Response
-	var file *os.File
-	var err error
 	for range t.C {
 		if res, err = c.Do(req); err != nil {
-			log.Println("Error:", err, "Job:", j, "will retry...")
+			log.Println("c.Do", "Error:", err, "Job:", j, "will retry...")
 			continue
 		}
-		defer res.Body.Close()
-
-		dirname := path.Join(dir, image.Format(dirformat, true))
-		filename := path.Join(dirname, image.Format(fileformat, false))
-
-		os.MkdirAll(dirname, 0777)
-		file, _ = os.Create(filename)
-		defer file.Close()
 
 		if _, err = io.Copy(file, res.Body); err != nil {
-			log.Println("Error:", err, "Job:", j, "will retry...")
+			log.Println("io.Copy", "Error:", err, "Job:", j, "will retry...")
 			continue
 		}
 
 		t.Stop()
 		break
 	}
+	defer res.Body.Close()
 }

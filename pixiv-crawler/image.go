@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -45,8 +46,11 @@ func (img Image) Format(format string, isDir bool) string {
 	format = strings.Replace(format, "{{Image.Id}}", strconv.Itoa(img.Id), -1)
 
 	if !isDir {
-		format += path.Ext(img.Path)
+		u, _ := url.Parse(img.Path)
+		format += path.Ext(u.Path)
 	}
+
+	format = strings.Replace(format, "/", "SLASH", -1)
 
 	return format
 }
