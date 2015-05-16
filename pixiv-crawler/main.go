@@ -26,7 +26,7 @@ var (
 	fileformat string
 	dirformat  string
 	dir        string
-	workSize   int
+	worksCount int
 )
 
 func init() {
@@ -38,7 +38,7 @@ func init() {
 	flag.StringVar(&fileformat, "file-format", "pixiv-{{Illust.Id}}-{{Illust.Name}}-{{Author.Name}}-{{Image.Id}}", "the format of the image name")
 	flag.StringVar(&dirformat, "dir-format", "{{Author.Name}}-{{Author.Id}}", "the format of the directory name")
 	flag.StringVar(&dir, "dir", d, "the directory to save the images")
-	flag.IntVar(&workSize, "work-size", 10, "the max count of concurreny working jobs")
+	flag.IntVar(&worksCount, "works-count", 10, "the max count of concurreny working jobs")
 	flag.Parse()
 
 	if flag.NArg() < 1 || user == "" || pass == "" {
@@ -52,7 +52,7 @@ func init() {
 
 func main() {
 	queue := make(chan Job, 20)
-	wc := make(chan struct{}, workSize)
+	works := make(chan struct{}, worksCount)
 	wg := new(sync.WaitGroup)
 
 	wait := func() {
@@ -84,9 +84,9 @@ func main() {
 	for j := range queue {
 		once.Do(wait)
 		go func(j Job) {
-			wc <- struct{}{}
+			works <- struct{}{}
 			defer func() {
-				<-wc
+				<-works
 			}()
 			defer wg.Done()
 			defer log.Println("Job Done\t", j)
